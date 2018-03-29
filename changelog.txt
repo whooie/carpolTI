@@ -1,0 +1,31 @@
+~2017-07-14~
+v1.0
+- all methods are written, probably a few bugs
+
+~2017-07-18~
+v1.1
+- removed interpolation in time
+- r, phi, and t values are now printed with their indices in separate files in output/
+
+~2017-07-19~
+v1.2
+- removed run methods from fullruns.*, put in main()
+- fullruns.* is now deprecated
+- reorganized the structure of main() to have constants be more easily adjustable
+- created readme
+
+~2017-07-20~
+v1.3
+- adjusted the spacing between numbers when they get printed to the output file
+- corrected the error when converting Er and Ephi to V/m
+
+~2017-07-21~
+v1.4
+- r, phi, and t values are now printed in the header of the output file alongside their own files
+- terminal output now prints more precise progress updates
+
+~2017-11-27~
+v1.5
+- now uses vectors and sets instead of C-style arrays; should reduce memory usage overall and
+  increase efficiency a little
+- use dirent.h to access files, now requires much less user input regarding files and filelists
