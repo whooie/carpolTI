@@ -1,0 +1,181 @@
+% Will Huie
+
+%%% document formatting %%%
+\documentclass[hidelinks,12pt]{article}
+\usepackage[left=1in,right=1in,top=1in,bottom=1in]{geometry} % set margins to arbitrary sizes
+%\renewcommand{\familydefault}{\sfdefault} % use sans-serif font
+\usepackage{indentfirst,tabularx,setspace} % indentation, tables, line spacing
+\usepackage[usenames,dvipsnames,svgnames,table]{xcolor} % coloring tool
+\usepackage{hyperref,fancyhdr,graphicx} % hyperlinks; customizable headers/footers; import graphics
+\usepackage{amsmath,amssymb,mathtools,esint,xfrac} % math symbols, diagonal fractions (\sfrac)
+\usepackage[shortlabels]{enumitem} % flexible enumerate
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage[normalem]{ulem}
+\newcommand{\hangingindent}[1][\parindent]{ % use a hanging indent for the next paragraph
+    \hangindent=#1
+    \hangafter=1
+    \noindent
+}
+\usepackage{listings}
+\graphicspath{}
+%%% math formatting %%%
+\DeclarePairedDelimiter\set{\left\{}{\right\}}
+\DeclarePairedDelimiter\abs{\left\lvert}{\right\rvert}
+\DeclarePairedDelimiter\ceil{\left\lceil}{\right\rceil}
+\DeclarePairedDelimiter\floor{\left\lfloor}{\right\rfloor}
+\newcommand{\tab}[1][1cm]{\hspace*{#1}} % manual spacing
+\newcommand{\sci}[2]{{#1} \cdot 10^{#2}} % scientific notation
+\newcommand{\uu}[1]{\text{ {#1}}} % write units in math mode
+\newcommand{\cond}[1]{\text{ {#1} }} % regular text for cases
+\newcommand{\vect}[1]{\boldsymbol{#1}} % write vectors as bold letters, rather than using the hat
+\newcommand{\Alg}[2]{\textbf{{#1}}({#2})} % calling other algorithms
+\newcommand{\alg}[1]{\textbf{{#1}}} % referencing algorithms in normal text
+\newcommand{\diff}[1]{\frac{d}{d{#1}}} % differentiation function
+\newcommand{\Diff}[2]{\frac{d{#1}}{d{#2}}} % the derivative of a function
+\newcommand{\partl}[1]{\frac{\partial}{\partial{#1}}} % partial differentiation function
+\newcommand{\Partl}[2]{\frac{\partial{#1}}{\partial{#2}}} % the partial derivative of a function
+%%% code block settings %%%
+\usepackage{listings}
+\lstset{
+    %frame=tb,
+    aboveskip=3mm,
+    belowskip=3mm,
+    showstringspaces=false,
+    basicstyle={\small\ttfamily},
+    commentstyle=\color{gray},
+    keywordstyle=\color{red},
+    numberstyle=\color{navyblue},
+    stringstyle=\color{dandelion},
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=4,
+}
+
+\title{Summary of carpolTI}
+\date{}
+\author{Will Huie}
+
+\begin{document}
+\maketitle
+\onehalfspacing
+
+\section{Introduction}
+\textbf{carpolTI}, short for Cartesian-to-Polar Transformer and Interpolator (tentatively), is a set of methods written in C++ with the original intention of translating data from a uniform Cartesian grid to a polar one. While this document will provide a quick run-down of what carpolTI was originally written to do, it should be noted that these methods were written with flexibility in mind, and should be easily adaptable to arbitrary cases.
+
+\section{Program Overview and Initial Setup}
+This section goes over the general steps of the process and the particular arrangement of files that carpolTI requires.
+
+\subsection{The General Method}
+Broadly speaking, the overall procedure of carpolTI can be given by the following.
+\begin{algorithm}
+    \caption{carpolTI}
+    \nl Trim headers and footers off the input data\;
+    \nl Generate set $\Phi$ of $(r, \phi, t)$ polar grid points\;
+    \nl \ForEach{$(r, \phi, t) \in \Phi$}{
+        \nl Generate maps $E: (x,y,t) \rightarrow (E_{x}, E_{y}),~B: (x,y,t) \rightarrow B_z$ of electric and magnetic field values, respectively\;
+        \nl Using $E$ and $B$, interpolate values at $(r, \phi, t)$\;
+        \nl Transform $\left< E_{x}, E_{y} \right> \rightarrow \left<E_{r}, E_{\phi} \right>$\;
+        \nl Using $B$, calculate $\partial_{r}B_{z},~\partial_{\phi}B_z$\;
+        \nl Write results to output file\;
+    }
+\end{algorithm}
+
+\subsection{Preparation}
+Before beginning, however, carpolTI requires a specific file structure. To start, run in a Bash terminal to generate the necessary directories:
+\begin{lstlisting}[language=bash]
+    cd /path/to/carpolTI
+    make install
+\end{lstlisting}
+Then obey the following guidelines:
+\begin{enumerate}[label={$\cdot$},leftmargin={1cm},rightmargin={1cm}]
+    \item The data files should be placed in \texttt{data\_raw}
+    \item $r$- and $\phi$-values should be listed per-line in separate files in \texttt{gridlists}
+\end{enumerate}
+
+\subsection{Setting Constants and Compiling}
+After files are in their places, \texttt{main()} should be edited to set the following constants:
+\begin{enumerate}[label={$\cdot$},leftmargin={1cm},rightmargin={1cm}]
+    \item \texttt{head}, \texttt{foot}: starting and ending line numbers (with 1 at the top) of the desired data in each file.
+    \item \texttt{rmin}, \texttt{rmax}, \texttt{phimin}, \texttt{phimax}: the desired bounds (inclusive) in the polar grid.
+    \item \texttt{xmin}, \texttt{xmax}, \texttt{ymin}, \texttt{ymax}: the desired bounds (inclusive) in the Cartesian grid.
+    \item \texttt{hidx}, \texttt{midx}, \texttt{sidx}, \texttt{msidx}: the string indices (0 on the far left) of the hour, minute, second, and millisecond numbers in the filenames' timestamps.
+    \item \texttt{xcolnum}, \texttt{ycolnum}, \texttt{Excolnum}, \texttt{Eycolnum}, \texttt{Bzcolnum}: the column indices (0 on the far left) of $x$-, $y$-, $E_{x}$-, $E_{y}$-, and $B_{z}$-values.
+    \item \texttt{outfile}: path to the output file for the run.
+    \item \texttt{rlist}, \texttt{philist}: paths to the files containing the $r$- and $\phi$-values of the polar grid points.
+    \item \texttt{rkey}, \texttt{phikey}, \texttt{tkey}: paths to the files which list the $r$-, $\phi$-, and $t$-values used in the run. Note that these values will also be printed in the main output file.
+\end{enumerate}
+Once these are in order, compile and run with
+\begin{lstlisting}[language=bash]
+    cd /path/to/carpolTI
+    make
+    ./main
+\end{lstlisting}
+
+\section{The Complete Procedure}\label{procedure}
+This section will go into greater detail on the general method and the individual tools it uses. The complete signatures for each method mentioned below can be found below in Section \ref{headers}.
+
+\subsection{Trimming the Data Files}
+This action is performed by the single method \texttt{trim\_data()}. For each file in \texttt{data\_raw}, \texttt{trim\_data()} discards all lines outside of the specified range and copies the remaining part to \texttt{data\_trimmed} under the same filename. As most text editors consider the first line of a file to be line 1, so will \texttt{trim\_data()}.
+
+\subsection{Reading Values}
+After the data has been trimmed, each file is to be looped over and needs to be scanned for a few things. That is, for each of the files in \texttt{data\_trimmed}, do everything that follows in the rest of Section \ref{procedure}. 
+\begin{enumerate}[label={\arabic{enumi}.},leftmargin={1cm},rightmargin={1cm}]
+    \item Get sorted arrays of unique coordinate values in the Cartesian grid; accomplished via \texttt{unique\_column\_vals()}. This returns a sorted array of doubles pointing to all the unique values in the $n$-th column (with 0 being the leftmost column) of a file in a given range, along with its size for convenience. This should be called twice to read both $x$- and $y$-values.
+
+    \item Get maps assigning dependent variable values to $(x,y)$ grid points; accomplished via \texttt{make\_map()}. This returns a once-nested map object assigning values in two columns to those in a third. \texttt{make\_map()} should be called for as many dependent variables as are desired -- in this case, once for each of $E_{x},~E_{y},~B_{z}$.
+\end{enumerate}
+Once this is done, \texttt{unique\_column\_vals()} should be called a few more times on the $r$- and $\phi$-value lists in \texttt{gridlists}.
+
+\subsection{Doing the Math}
+To aid in the process of eventually writing calculated values to a file along with associated indices, the arrays of $r$- and $\phi$-values are to be looped over for each file in \texttt{data\_trimmed}. The values of the dependent variables read above are to be interpolated linearly at each $(r,\phi)$ grid point. In the case of $E_{x}$ and $E_{y}$, the interpolated values are subsequently transformed to their corresponding values in $(r,\phi)$ coordinates. Since the partial derivatives of $B_{z}$ in $r$ and $\phi$ are additionally required, we also need four other $(r,\phi)$ points at which $B_{z}$ must be calculated. This process is as follows for each $(r_{i},\phi_{i})$:
+\begin{enumerate}[label={\arabic{enumi}.},leftmargin={1cm},rightmargin={1cm}]
+    \item Use \texttt{find\_neighbors()} to get the four $(x,y)$ grid points closest to $(r_{i},\phi_{i})$.
+    \item Use \texttt{interpolate\_space()} to calculate $E_{x}(r_{i},\phi_{i})$, $E_{y}(r_{i},\phi_{i})$, and $B_{z}(r_{i},\phi_{i})$.
+    \item From the arrays of $r$- and $\phi$-values, get $r_{i-1}$, $r_{i+1}$, $\phi_{i-1}$, and $\phi_{i+1}$.
+    \item Use \texttt{find\_neighbors()} and \texttt{interpolate\_space()} to calculate $B_{z}(r_{i-1},\phi_{i})$, $B_{z}(r_{i+1},\phi_{i})$, $B_{z}(r_{i},\phi_{i-1})$, and $B_{z}(r_{i},\phi_{i+1})$.
+    \item Use these values to calculate $\Partl{B_{z}}{r},\Partl{B_{z}}{\phi}$ using a first-order central finite difference:
+        \begin{equation}
+            \Partl{B_{z}}{r} = \frac{B_{z}(r_{i+1},\phi_{i}) - B_{z}(r_{i-1},\phi_{i})}{r_{i+1} - r_{i-1}}
+        \end{equation}
+        \begin{equation}
+            \Partl{B_{z}}{\phi} = \frac{B_{z}(r_{i},\phi_{i+1}) - B_{z}(r_{i},\phi_{i-1})}{\phi_{i+1} - \phi_{i-1}}
+        \end{equation}
+    \item Write the $r,\phi,t$ indices as well as $E_{\phi}$, $E_{r}$, $B_{z}$, $\Partl{B_{z}}{r}$, and $\Partl{B_{z}}{\phi}$ to the output file.
+\end{enumerate}
+
+\section{Source Files}\label{headers}
+This section will list the complete signatures of all written methods and their locations in the source header files, should there ever be a need to adapt the main method. For extended documentation, see their respective implementation files.
+
+\subsection{\texttt{readfile.hpp}}
+\texttt{readfile} methods are used to parse input files. Here, line numbers start at 1 from the top while column numbers start at 0 from the left.
+\begin{lstlisting}[language=C++,basicstyle={\footnotesize\ttfamily}]
+void trim_data(int head, int foot);
+
+std::set<double> unique_column_vals(std::string filename, double minval, double maxval, int colnum);
+
+std::map<double, std::map<double, double>> make_map(std::string filename, int xcolnum, int ycolnum, int depcolnum);
+
+std::map<double, std::set<double>> make_grid_map(std::string filename, int xcolnum, double xminval, double xmaxval, int ycolnum, double yminval, double ymaxval);
+
+double timeof(std::string filename, int hidx, int midx, int sidx, int msidx);
+
+std::set<double> read_original_tvals(int hidx, int midx, int sidx, int msidx);
+\end{lstlisting}
+
+\subsection{\texttt{interpolate.hpp}}
+\texttt{interpolate} methods deal with everything that has to do with the interpolation process. While a method for interpolation in time is included, it is not currently used in the main method.
+\begin{lstlisting}[language=C++,basicstyle={\footnotesize\ttfamily}]
+std::tuple<double, double, double, double> find_neighbors(std::set<double> xvals, std::set<double> yvals, double r, double phi);
+
+double interpolate_space(std::tuple<double, double, double, double> box, std::map<double, std::map<double, double>> datamap, double r, double phi);
+
+double interpolate_time(double target_time, double time1, double val1, double time2, double val2);
+\end{lstlisting}
+
+\subsection{\texttt{transform.hpp}}
+The only \texttt{transform} method is the one used to transform from Cartesian coordinates to polar coordinates.
+\begin{lstlisting}[language=C++,basicstyle={\footnotesize\ttfamily}]
+std::tuple<double, double> transform_vector(double xcomp, double ycomp, double r, double phi);
+\end{lstlisting}
+
+\end{document}
