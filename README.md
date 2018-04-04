@@ -1,5 +1,5 @@
 # carpolTI
-## Cartesian-to-Polar Transformation and Interpolation
+Cartesian-to-Polar Transformation and Interpolation
 
 Simple tool to transform rectangular grids of data.
 
